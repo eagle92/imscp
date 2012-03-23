@@ -312,7 +312,7 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWebdavProvider
                     AJXP_Controller::applyHook("node.before_change", array(&$currentNode));
                 }catch(Exception $e){
                     header("Content-Type:text/plain");
-                    $e->getMessage();
+                    print $e->getMessage();
                     return;
                 }
 				if(!is_file($fileName) || !$this->isWriteable($fileName, "file")){
@@ -621,8 +621,12 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWebdavProvider
                     $metaData["repo_has_recycle"] = "true";
 				}
 				$parentAjxpNode = new AJXP_Node($nonPatchedPath, $metaData);
-                $parentAjxpNode->loadNodeInfo(false, true);
-				AJXP_XMLWriter::renderAjxpHeaderNode($parentAjxpNode);
+                $parentAjxpNode->loadNodeInfo(false, true, ($lsOptions["l"]?"all":"minimal"));
+                if(AJXP_XMLWriter::$headerSent == "tree"){
+                    AJXP_XMLWriter::renderAjxpNode($parentAjxpNode, false);
+                }else{
+                    AJXP_XMLWriter::renderAjxpHeaderNode($parentAjxpNode);
+                }
 				if(isSet($totalPages) && isSet($crtPage)){
 					AJXP_XMLWriter::renderPaginationData(
 						$countFiles, 
@@ -672,10 +676,13 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWebdavProvider
                     if($isLeaf != "") $meta = array("is_file" => ($isLeaf?"1":"0"));
                     $node = new AJXP_Node($currentFile, $meta);
                     $node->setLabel($nodeName);
-                    $node->loadNodeInfo();
-					if(!empty($metaData["nodeName"]) && $metaData["nodeName"] != $nodeName){
-                        $node->setUrl($nonPatchedPath."/".$metaData["nodeName"]);
+                    $node->loadNodeInfo(false, false, ($lsOptions["l"]?"all":"minimal"));
+					if(!empty($node->metaData["nodeName"]) && $node->metaData["nodeName"] != $nodeName){
+                        $node->setUrl($nonPatchedPath."/".$node->metaData["nodeName"]);
 					}
+                    if(!empty($node->metaData["hidden"]) && $node->metaData["hidden"] === true){
+               			continue;
+               		}
 
                     $nodeType = "d";
                     if($node->isLeaf()){
@@ -691,8 +698,18 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWebdavProvider
 
 					$fullList[$nodeType][$nodeName] = $node;
 					$cursor ++;
-				}				
-				array_map(array("AJXP_XMLWriter", "renderAjxpNode"), $fullList["d"]);
+				}
+                if(isSet($httpVars["recursive"]) && $httpVars["recursive"] == "true"){
+                    foreach($fullList["d"] as $nodeDir){
+                        $this->switchAction("ls", array(
+                            "dir" => SystemTextEncoding::toUTF8($nodeDir->getPath()),
+                            "options"=> $httpVars["options"],
+                            "recursive" => "true"
+                        ), array());
+                    }
+                }else{
+                    array_map(array("AJXP_XMLWriter", "renderAjxpNode"), $fullList["d"]);
+                }
 				array_map(array("AJXP_XMLWriter", "renderAjxpNode"), $fullList["z"]);
 				array_map(array("AJXP_XMLWriter", "renderAjxpNode"), $fullList["f"]);
 				
@@ -759,7 +776,7 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWebdavProvider
      * @param AJXP_Node $ajxpNode
      * @return void
      */
-    function loadNodeInfo(&$ajxpNode){
+    function loadNodeInfo(&$ajxpNode, $parentNode = false, $details = false){
 
         $nodeName = basename($ajxpNode->getPath());
         $metaData = $ajxpNode->metadata;
@@ -807,28 +824,17 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWebdavProvider
             $metaData["ajxp_mime"] = "ajxp_browsable_archive";
         }
 
-        //}
-
-        /*
-        if(!isSet(self::$loadedUserBookmarks)){
-            $user = AuthService::getLoggedUser();
-            if($user == null){
-                self::$loadedUserBookmarks = false;
-            }else{
-                self::$loadedUserBookmarks = $user->getBookmarks();
-            }
+        if($details == "minimal"){
+            $miniMeta = array(
+                "is_file" => $metaData["is_file"],
+                "filename" => $metaData["filename"],
+                "bytesize" => $metaData["bytesize"],
+                "ajxp_modiftime" => $metaData["ajxp_modiftime"],
+            );
+            $ajxpNode->mergeMetadata($miniMeta);
+        }else{
+            $ajxpNode->mergeMetadata($metaData);
         }
-        if(self::$loadedUserBookmarks !== false){
-            foreach(self::$loadedUserBookmarks as $bookmark){
-                if($bookmark["PATH"] == $ajxpNode->getPath()) {
-                    $ajxpNode->mergeMetadata(array(
-                        "ajxp_bookmarked"=>"true",
-                        "ajxp_overlay_icon" =>"bookmark"));
-                }
-            }
-        }
-        */
-        $ajxpNode->mergeMetadata($metaData);
 
     }
 
@@ -897,13 +903,14 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWebdavProvider
         return false;
     }
 
-    function filterFolder($folderName){
+    function filterFolder($folderName, $compare = "equals"){
         if(array_key_exists("HIDE_FOLDERS", $this->driverConf) && !empty($this->driverConf["HIDE_FOLDERS"])){
             if(!is_array($this->driverConf["HIDE_FOLDERS"])) {
                 $this->driverConf["HIDE_FOLDERS"] = explode(",",$this->driverConf["HIDE_FOLDERS"]);
             }
             foreach ($this->driverConf["HIDE_FOLDERS"] as $search){
-                if(strcasecmp($search, $folderName) == 0) return true;
+                if($compare == "equals" && strcasecmp($search, $folderName) == 0) return true;
+                if($compare == "contains" && strpos($folderName, "/".$search) !== false) return true;
             }
         }
         return false;
@@ -1073,6 +1080,8 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWebdavProvider
                 if(!$realfileSystem) $filePathOrData = fsAccessWrapper::getRealFSReference($filePathOrData);
                 $filePathOrData = str_replace("\\", "/", $filePathOrData);
                 header("X-Sendfile: ".SystemTextEncoding::toUTF8($filePathOrData));
+                header("Content-type: application/octet-stream");
+                header('Content-Disposition: attachment; filename="' . basename($filePathOrData) . '"');
                 return;
             }
 			$stream = fopen("php://output", "a");
@@ -1629,6 +1638,10 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWebdavProvider
 	}
 	
 	/**
+	 * @var fsAccessDriver
+	 */
+	public static $filteringDriverInstance;
+	/**
 	 * @return zipfile
 	 */ 
     function makeZip ($src, $dest, $basedir)
@@ -1645,13 +1658,16 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWebdavProvider
     	}
     	AJXP_Logger::debug("Pathes", $filePaths);
     	AJXP_Logger::debug("Basedir", array($basedir));
+    	self::$filteringDriverInstance = $this;
     	$archive = new PclZip($dest);
-    	$vList = $archive->create($filePaths, PCLZIP_OPT_REMOVE_PATH, $basedir, PCLZIP_OPT_NO_COMPRESSION, PCLZIP_OPT_ADD_TEMP_FILE_ON);
+    	$vList = $archive->create($filePaths, PCLZIP_OPT_REMOVE_PATH, $basedir, PCLZIP_OPT_NO_COMPRESSION, PCLZIP_OPT_ADD_TEMP_FILE_ON, PCLZIP_CB_PRE_ADD, 'zipPreAddCallback');
     	if(!$vList){
     		throw new Exception("Zip creation error : ($dest) ".$archive->errorInfo(true));
     	}
+    	self::$filteringDriverInstance = null;
     	return $vList;
     }
+    
 
     function recursivePurge($dirName, $purgeTime){
 
@@ -1708,5 +1724,13 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWebdavProvider
 
     
 }
+
+    function zipPreAddCallback($value, $header){
+    	if(fsAccessDriver::$filteringDriverInstance == null) return true;
+    	$search = $header["filename"];
+    	return !(fsAccessDriver::$filteringDriverInstance->filterFile($search) 
+    	|| fsAccessDriver::$filteringDriverInstance->filterFolder($search, "contains"));
+    }
+
 
 ?>

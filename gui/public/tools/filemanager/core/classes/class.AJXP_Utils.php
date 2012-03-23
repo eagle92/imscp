@@ -261,7 +261,7 @@ class AJXP_Utils
                     $output["EXT_REP"] = SystemTextEncoding::toUTF8(urldecode($parameters["folder"]));
                     $loggedUser->setArrayPref("history", "last_repository", $parameters["repository_id"]);
                     $loggedUser->setPref("pending_folder", SystemTextEncoding::toUTF8(AJXP_Utils::decodeSecureMagic($parameters["folder"])));
-                    $loggedUser->save();
+                    $loggedUser->save("user");
                     AuthService::updateUser($loggedUser);
                 } else {
                     $session["PENDING_REPOSITORY_ID"] = $parameters["repository_id"];
@@ -544,7 +544,7 @@ class AJXP_Utils
     static function convertBytes($value)
     {
         if (is_numeric($value)) {
-            return $value;
+            return intval($value);
         }
         else
         {
@@ -577,6 +577,24 @@ class AJXP_Utils
     static function xmlEntities($string, $toUtf8 = false)
     {
         $xmlSafe = str_replace(array("&", "<", ">", "\"", "\n", "\r"), array("&amp;", "&lt;", "&gt;", "&quot;", "&#13;", "&#10;"), $string);
+        if ($toUtf8) {
+            return SystemTextEncoding::toUTF8($xmlSafe);
+        } else {
+            return $xmlSafe;
+        }
+    }
+
+
+    /**
+     * Replace specific chars by their XML Entities, for use inside attributes value
+     * @static
+     * @param $string
+     * @param bool $toUtf8
+     * @return mixed|string
+     */
+    static function xmlContentEntities($string, $toUtf8 = false)
+    {
+        $xmlSafe = str_replace(array("&", "<", ">", "\""), array("&amp;", "&lt;", "&gt;", "&quot;"), $string);
         if ($toUtf8) {
             return SystemTextEncoding::toUTF8($xmlSafe);
         } else {
