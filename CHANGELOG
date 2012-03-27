@@ -9,6 +9,7 @@ Tickets:
 	- Fixed #397: Defect - squirrelmail - Fatal error: Cannot redeclare hex2bin()
 	- Fixed #396: Defect - File Manager (ajaxplorer) no compatible with php5.4
 	- Fixed #402: Task - Ajaxplorer - Integrate fix from ajaxplorer forum
+	- Fixed #403: Defect - Hosting Plan Secure Code doesn't work
 
 -------------------------------------------------------------------------------------
 i-MSCP 1.0.3.0
