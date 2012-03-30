@@ -5,6 +5,11 @@ i-MSCP ChangeLog
 i-MSCP 1.0.3.1
 -------------------------------------------------------------------------------------
 
+GUI:
+	Tools:
+		- Updated PhpMyAdmin to version 3.4.10.2
+
+
 Tickets:
 	- Fixed #397: Defect - squirrelmail - Fatal error: Cannot redeclare hex2bin()
 	- Fixed #396: Defect - File Manager (ajaxplorer) no compatible with php5.4
