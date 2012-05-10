@@ -375,22 +375,23 @@ sub buildMain{
 
 	$cfgTpl = iMSCP::Templator::process(
 		{
-			MTA_HOSTNAME				=> $hostname,
-			MTA_LOCAL_DOMAIN			=> "$hostname.local",
-			MTA_VERSION					=> $main::imscpConfig{'Version'},
-			MTA_TRANSPORT_HASH			=> $self::postfixConfig{'MTA_TRANSPORT_HASH'},
-			MTA_LOCAL_MAIL_DIR			=> $self::postfixConfig{'MTA_LOCAL_MAIL_DIR'},
+			MTA_HOSTNAME			=> $hostname,
+			MTA_LOCAL_DOMAIN		=> "$hostname.local",
+			MTA_VERSION			=> $main::imscpConfig{'Version'},
+			MTA_TRANSPORT_HASH		=> $self::postfixConfig{'MTA_TRANSPORT_HASH'},
+			MTA_RELAY_HASH			=> $self::postfixConfig{'MTA_RELAY_HASH'},
+			MTA_LOCAL_MAIL_DIR		=> $self::postfixConfig{'MTA_LOCAL_MAIL_DIR'},
 			MTA_LOCAL_ALIAS_HASH		=> $self::postfixConfig{'MTA_LOCAL_ALIAS_HASH'},
 			MTA_VIRTUAL_MAIL_DIR		=> $self::postfixConfig{'MTA_VIRTUAL_MAIL_DIR'},
 			MTA_VIRTUAL_DMN_HASH		=> $self::postfixConfig{'MTA_VIRTUAL_DMN_HASH'},
 			MTA_VIRTUAL_MAILBOX_HASH	=> $self::postfixConfig{'MTA_VIRTUAL_MAILBOX_HASH'},
 			MTA_VIRTUAL_ALIAS_HASH		=> $self::postfixConfig{'MTA_VIRTUAL_ALIAS_HASH'},
-			MTA_MAILBOX_MIN_UID			=> $uid,
-			MTA_MAILBOX_UID				=> $uid,
-			MTA_MAILBOX_GID				=> $gid,
-			PORT_POSTGREY				=> $main::imscpConfig{'PORT_POSTGREY'},
-			GUI_CERT_DIR				=> $main::imscpConfig{'GUI_CERT_DIR'},
-			SSL							=> ($main::imscpConfig{'SSL_ENABLED'} eq 'yes' ? '' : '#')
+			MTA_MAILBOX_MIN_UID		=> $uid,
+			MTA_MAILBOX_UID			=> $uid,
+			MTA_MAILBOX_GID			=> $gid,
+			PORT_POSTGREY			=> $main::imscpConfig{'PORT_POSTGREY'},
+			GUI_CERT_DIR			=> $main::imscpConfig{'GUI_CERT_DIR'},
+			SSL				=> ($main::imscpConfig{'SSL_ENABLED'} eq 'yes' ? '' : '#')
 		},
 		$cfgTpl
 	);
